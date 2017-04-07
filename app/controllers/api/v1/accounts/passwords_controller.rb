@@ -3,7 +3,6 @@ class Api::V1::Accounts::PasswordsController < Devise::PasswordsController
   append_before_action :assert_reset_token_passed, only: :edit
 
   def create
-    binding.pry
     self.resource = resource_class.send_reset_password_instructions(params[:password])
     if successfully_sent?(resource)
       render json: { user: self.resource , success: true, status: 200, message: "An email has been sent to '#{resource.email}' containing instructions for resetting your password."}
@@ -13,15 +12,9 @@ class Api::V1::Accounts::PasswordsController < Devise::PasswordsController
   end
 
   def edit
-    resource = User.find(params[:resource])
+    self.resource = resource_class.new
     resource.reset_password_token = params[:reset_password_token]
-    if resource
-      yield resource if block_given?
-      redirect_to "konnexe://X-User-Token/#{resource.authentication_token}/id/#{resource.id}/reset_password_token/#{resource.reset_password_token}"
-    else
-      @error = "This link has expired"
-      redirect_to "konnexe://error/#{@error}"
-    end
+    redirect_to "konnexe://X-User-Token/#{resource.authentication_token}/id/#{resource.id}/reset_password_token/#{resource.reset_password_token}"
   end
 
   def update
@@ -31,7 +24,7 @@ class Api::V1::Accounts::PasswordsController < Devise::PasswordsController
       self.resource = resource_class.reset_password_by_token(params[:user])
       if resource.errors.empty?
         resource.active_for_authentication? ? :updated : :updated_not_active
-        render json: { user: UserSerializer.new(resource).serializable_hash, status: 200, success: true, message: "Your password has been successfully updated!" }
+        render json: { user: self.resource, status: 200, success: true, message: "Your password has been successfully updated!" }
       else
         render json: { error: resource.errors.full_messages.first, status: 422, success: false }
       end
